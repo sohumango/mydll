@@ -30,7 +30,16 @@ public class test{
             Console.WriteLine("{0}-{1}", i, farr[i].r);
             for (int j = 0; j < 5; j++) {
                 unsafe{
-                    Console.WriteLine("\t\t{0}-{1}-{2}", j, farr[i].idx[j], farr[i].conf[j]);
+                    fixed( byte* ptr = farr[i].nm ){
+                        byte[] bytes = new byte[256];
+                        int index = 0;
+                        for (byte* counter = ptr; *counter != 0; counter++)
+                        {
+                            bytes[index++] = *counter;
+                        }
+                        string txt = System.Text.Encoding.ASCII.GetString(bytes);
+                        Console.WriteLine("\t\t{0}-{1}-{2}-{3}", j, farr[i].idx[j], farr[i].conf[j], txt);
+                    }
                 }
             }
         }
