@@ -1,4 +1,12 @@
 @echo off
+
+echo %path% | findstr 2017 >NUL && (
+        echo find14
+) || (
+    echo notfind14
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+)
+
 if "%1" == "" (
     echo]       -----make dll---------
     cl.exe /D_USRDLL /D_WINDLL mydll.cpp /link Ole32.lib /dll /out:mydll.dll
