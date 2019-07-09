@@ -5,11 +5,13 @@ using System.IO;
 using System;
 
 public class test{
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
     public unsafe struct objf{
-        public fixed int idx[5];
-        public fixed float conf[5];
+        public fixed UInt32  idx[5];
+        public fixed Single conf[5];
         public int r;
+        public fixed byte nm[256];
+        public fixed byte nm2[1280];
     };
 
     [DllImport("myDLL.dll")]public static extern bool testfunction( int size, out IntPtr result, ref int objNum);
@@ -19,6 +21,7 @@ public class test{
         int objNum = 0;
         testfunction(5, out arr, ref objNum);
         objf []farr = new objf[objNum];
+        Console.WriteLine("UInt32 size:{0}, Single size:{1}", sizeof(UInt32),sizeof(Single));
         for (int i = 0; i < objNum; i++){
             int nsize = Marshal.SizeOf(farr[i]) * i; 
             farr[i] = (objf)Marshal.PtrToStructure(arr+nsize, typeof(objf));    
