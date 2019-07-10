@@ -5,44 +5,101 @@ using System.IO;
 using System;
 
 public class test{
-    [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public unsafe struct objf{
-        public fixed UInt32  idx[5];
-        public fixed Single conf[5];
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class objf{
+        int a;
+        int b;
+        int c;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+        public UInt32 [] idx;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+        public Single [] conf;
         public int r;
-        public fixed byte nm[256];
-        public fixed byte nm2[1280];
+        public string nm;
+        public int sz1;
+        public string nm2;
+        public int sz2;
     };
 
-    [DllImport("myDLL.dll")]public static extern bool testfunction( int size, out IntPtr result, ref int objNum);
+    [DllImport("myDLL.dll")]
+    public static extern bool testfunction(int size, out IntPtr ofarr, out int objNum);
 
-    public static int Main(string [] argv){
-        IntPtr arr = IntPtr.Zero;
-        int objNum = 0;
-        testfunction(5, out arr, ref objNum);
-        objf []farr = new objf[objNum];
-        Console.WriteLine("UInt32 size:{0}, Single size:{1}", sizeof(UInt32),sizeof(Single));
-        for (int i = 0; i < objNum; i++){
-            int nsize = Marshal.SizeOf(farr[i]) * i; 
-            farr[i] = (objf)Marshal.PtrToStructure(arr+nsize, typeof(objf));    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MyArrayStruct{
+        public bool flag;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+        public int[] vals;
+    }
+    [DllImport("myDLL.dll", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int TestArrayInStruct(ref MyArrayStruct myStruct);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class MyStruct{
+        public string buffer;
+        public int size;
+    }
+    [DllImport("myDLL.dll")]
+    public static extern void TestOutArrayOfStructs(out int size, out IntPtr outArray);
+
+    public static void t2(){
+        MyArrayStruct myStruct = new MyArrayStruct();
+        myStruct.flag = false;
+        myStruct.vals = new int[3];
+        myStruct.vals[0] = 1;
+        myStruct.vals[1] = 4;
+        myStruct.vals[2] = 9;
+        TestArrayInStruct(ref myStruct);
+        Console.WriteLine("\n------t2--------:");
+        Console.WriteLine(myStruct.flag);
+        Console.WriteLine("{0} {1} {2}", myStruct.vals[0], myStruct.vals[1], myStruct.vals[2]);
+    }
+
+    public static void t1(){
+        int size;
+        IntPtr outArray;
+        TestOutArrayOfStructs(out size, out outArray);
+        MyStruct[] manArray = new MyStruct[size];
+        IntPtr current = outArray;
+        Console.WriteLine("\n------t1--------:");
+        for (int i = 0; i < size; i++){
+            manArray[i] = new MyStruct();
+            Marshal.PtrToStructure(current, manArray[i]);
+            Marshal.DestroyStructure(current, typeof(MyStruct));
+            current = (IntPtr)((long)current + Marshal.SizeOf(manArray[i]));
+            Console.WriteLine("Element {0}: {1} {2}", i, manArray[i].buffer,manArray[i].size);
         }
-        for (int i = 0; i < objNum; i++){
-            Console.WriteLine("{0}-{1}", i, farr[i].r);
-            for (int j = 0; j < 5; j++) {
-                unsafe{
-                    fixed( byte* ptr = farr[i].nm ){
-                        byte[] bytes = new byte[256];
-                        int index = 0;
-                        for (byte* counter = ptr; *counter != 0; counter++)
-                        {
-                            bytes[index++] = *counter;
-                        }
-                        string txt = System.Text.Encoding.ASCII.GetString(bytes);
-                        Console.WriteLine("\t\t{0}-{1}-{2}-{3}", j, farr[i].idx[j], farr[i].conf[j], txt);
-                    }
+        Marshal.FreeCoTaskMem(outArray);
+    }
+    static void t3(){
+        int size;
+        IntPtr outArray;
+
+        Console.WriteLine("\n------t3--------:");
+        testfunction( 5, out outArray, out size);
+
+        objf[] farr = new objf[size];
+        IntPtr current = outArray;
+        Console.WriteLine("count:{0} ",size);
+        try{
+            for (int i = 0; i < size; i++){
+                farr[i] = new objf();
+                Marshal.PtrToStructure(current, farr[i]);
+                Marshal.DestroyStructure(current, typeof(objf));
+                current = (IntPtr)((long)current + Marshal.SizeOf(farr[i]));
+                Console.WriteLine("{0}-{1}", i, farr[i].r);
+                for (int j = 0; j < 5; j++) {
+                    Console.WriteLine("\t{0}-{1}-{2},{3},{4}", j, farr[i].idx[j], farr[i].conf[j],farr[i].nm,farr[i].nm2);
                 }
             }
+            Marshal.FreeCoTaskMem(outArray);
+        } catch(Exception ex) {
+            Console.WriteLine(ex);
         }
+    }
+    public static int Main(string [] argv){
+        t1();
+        t2();
+        t3();
         Console.WriteLine("hello");
         return 0;
     }
